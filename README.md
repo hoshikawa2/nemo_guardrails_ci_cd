@@ -169,3 +169,11 @@ No NeMo Guardrails:
 > CI/CD não é só sobre código, é sobre comportamento do agente.
 
 É essencial tratar configurações como **artefatos críticos de software**.
+
+## Referências
+
+- [Tutorial: NeMo Guardrails com Python, Proxy OpenAI-Compatible e Tracing](https://github.com/hoshikawa2/nemo_guardrails_configuration)
+
+## Acknowledgments
+
+- **Author** - Cristiano Hoshikawa (Oracle LAD A-Team Solution Engineer)

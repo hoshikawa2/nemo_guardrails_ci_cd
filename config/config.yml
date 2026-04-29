@@ -1,0 +1,16 @@
+models:
+  - type: main
+    engine: openai
+    model: gpt-4o-mini
+    parameters:
+      api_key: ${OPENAI_API_KEY}
+      base_url: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+
+rails:
+  input:
+    flows:
+      - self check input
+
+  output:
+    flows:
+      - self check output

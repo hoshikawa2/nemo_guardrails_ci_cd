@@ -1,0 +1,63 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  PYTHON_VERSION: '3.11'
+  IMAGE_NAME: 'guardrails-api'
+  IMAGE_TAG: '$(Build.SourceVersion)'
+  K8S_NAMESPACE: 'guardrails'
+
+steps:
+- checkout: self
+
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(PYTHON_VERSION)'
+  displayName: 'Use Python $(PYTHON_VERSION)'
+
+- script: |
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+  displayName: 'Install Python dependencies'
+
+- script: |
+    export OPENAI_API_KEY="${OPENAI_API_KEY:-sk-fake}"
+    pytest -v --junitxml=test-results.xml
+  displayName: 'Run pytest'
+
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: 'JUnit'
+    testResultsFiles: 'test-results.xml'
+    failTaskOnFailedTests: true
+  condition: succeededOrFailed()
+  displayName: 'Publish test results'
+
+- script: |
+    IMAGE_URI="$(OCIR_REGISTRY)/$(OCI_NAMESPACE)/$(OCIR_REPOSITORY):$(IMAGE_TAG)"
+    echo "##vso[task.setvariable variable=IMAGE_URI]$IMAGE_URI"
+    docker build -t "$IMAGE_URI" .
+  displayName: 'Build Docker image'
+
+- script: |
+    echo "$(OCIR_PASSWORD)" | docker login "$(OCIR_REGISTRY)" -u "$(OCIR_USER)" --password-stdin
+    docker push "$(IMAGE_URI)"
+  displayName: 'Push Docker image to OCIR'
+
+- script: |
+    mkdir -p ~/.kube
+    echo "$(OKE_KUBECONFIG_B64)" | base64 -d > ~/.kube/config
+    chmod 600 ~/.kube/config
+
+    kubectl apply -f k8s/namespace.yaml
+    kubectl apply -f k8s/secret.yaml
+
+    sed "s|REPLACE_IMAGE_URI|$(IMAGE_URI)|g" k8s/deployment.yaml | kubectl apply -f -
+    kubectl apply -f k8s/service.yaml
+
+    kubectl rollout status deployment/guardrails-api -n $(K8S_NAMESPACE) --timeout=180s
+    kubectl get svc guardrails-service -n $(K8S_NAMESPACE)
+  displayName: 'Deploy to OCI OKE'

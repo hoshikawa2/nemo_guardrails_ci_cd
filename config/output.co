@@ -1,0 +1,5 @@
+define flow self check output
+  $allowed = execute check_output
+  if not $allowed
+    bot refuse to respond
+    stop
